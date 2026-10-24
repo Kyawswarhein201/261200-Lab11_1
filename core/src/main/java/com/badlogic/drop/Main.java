@@ -19,31 +19,40 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 
 public class Main implements ApplicationListener {
 
-    Texture backgroundTexture;
-    Texture bucketTexture;
-    Texture dropTexture;
+    // Game images
+    private Texture backgroundTexture;
+    private Texture bucketTexture;
+    private Texture dropTexture;
 
-    Sound dropSound;
-    Music music;
+    // Game sounds
+    private Sound dropSound;
+    private Music music;
 
-    SpriteBatch spriteBatch;
-    FitViewport viewport;
+    // Drawing tools
+    private SpriteBatch spriteBatch;
+    private FitViewport viewport;
 
-    Sprite bucketSprite;
-    Vector2 touchPos;
-    Array<Sprite> dropSprites;
+    // Bucket and raindrops
+    private Sprite bucketSprite;
+    private Vector2 touchPos;
+    private Array<Sprite> dropSprites;
 
-    float dropTimer;
+    // Timer for creating new drops
+    private float dropTimer;
 
-    Rectangle bucketRectangle;
-    Rectangle dropRectangle;
+    // Collision detection
+    private Rectangle bucketRectangle;
+    private Rectangle dropRectangle;
 
     @Override
     public void create() {
+
+        // Load images from the assets folder
         backgroundTexture = new Texture("background.png");
         bucketTexture = new Texture("bucket.png");
         dropTexture = new Texture("drop.png");
 
+        // Load sounds
         dropSound = Gdx.audio.newSound(
             Gdx.files.internal("drop.mp3")
         );
@@ -52,54 +61,80 @@ public class Main implements ApplicationListener {
             Gdx.files.internal("music.mp3")
         );
 
+        // Initialize drawing tools
         spriteBatch = new SpriteBatch();
         viewport = new FitViewport(8, 5);
 
+        // Create the bucket
         bucketSprite = new Sprite(bucketTexture);
         bucketSprite.setSize(1, 1);
+        bucketSprite.setPosition(3.5f, 0);
 
+        // Initialize game objects
         touchPos = new Vector2();
         dropSprites = new Array<>();
 
         bucketRectangle = new Rectangle();
         dropRectangle = new Rectangle();
 
+        // Start background music
         music.setLooping(true);
         music.setVolume(0.5f);
         music.play();
+
+        // Create the first raindrop
+        createDroplet();
     }
 
     @Override
     public void render() {
+
+        // 1. Read player input
         input();
+
+        // 2. Update game logic
         logic();
+
+        // 3. Draw everything
         draw();
     }
 
     private void input() {
+
         float speed = 4f;
         float delta = Gdx.graphics.getDeltaTime();
 
+        // Move bucket right
         if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
             bucketSprite.translateX(speed * delta);
         }
 
+        // Move bucket left
         if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
             bucketSprite.translateX(-speed * delta);
         }
 
+        // Move bucket using mouse or touch
         if (Gdx.input.isTouched()) {
-            touchPos.set(Gdx.input.getX(), Gdx.input.getY());
+
+            touchPos.set(
+                Gdx.input.getX(),
+                Gdx.input.getY()
+            );
+
             viewport.unproject(touchPos);
             bucketSprite.setCenterX(touchPos.x);
         }
     }
 
     private void logic() {
+
         float worldWidth = viewport.getWorldWidth();
+
         float bucketWidth = bucketSprite.getWidth();
         float bucketHeight = bucketSprite.getHeight();
 
+        // Prevent bucket from leaving the screen
         bucketSprite.setX(
             MathUtils.clamp(
                 bucketSprite.getX(),
@@ -110,6 +145,7 @@ public class Main implements ApplicationListener {
 
         float delta = Gdx.graphics.getDeltaTime();
 
+        // Set bucket collision area
         bucketRectangle.set(
             bucketSprite.getX(),
             bucketSprite.getY(),
@@ -117,14 +153,18 @@ public class Main implements ApplicationListener {
             bucketHeight
         );
 
+        // Update all raindrops
         for (int i = dropSprites.size - 1; i >= 0; i--) {
+
             Sprite dropSprite = dropSprites.get(i);
 
             float dropWidth = dropSprite.getWidth();
             float dropHeight = dropSprite.getHeight();
 
+            // Make raindrop fall
             dropSprite.translateY(-2f * delta);
 
+            // Set raindrop collision area
             dropRectangle.set(
                 dropSprite.getX(),
                 dropSprite.getY(),
@@ -132,14 +172,22 @@ public class Main implements ApplicationListener {
                 dropHeight
             );
 
+            // Remove drops below the screen
             if (dropSprite.getY() < -dropHeight) {
                 dropSprites.removeIndex(i);
-            } else if (bucketRectangle.overlaps(dropRectangle)) {
+            }
+
+            // Check whether bucket catches a drop
+            else if (bucketRectangle.overlaps(dropRectangle)) {
+
                 dropSprites.removeIndex(i);
+
+                // Play collection sound
                 dropSound.play();
             }
         }
 
+        // Create a new drop approximately every second
         dropTimer += delta;
 
         if (dropTimer > 1f) {
@@ -149,9 +197,13 @@ public class Main implements ApplicationListener {
     }
 
     private void draw() {
+
+        // Clear the screen
         ScreenUtils.clear(Color.BLACK);
 
+        // Apply viewport
         viewport.apply();
+
         spriteBatch.setProjectionMatrix(
             viewport.getCamera().combined
         );
@@ -161,6 +213,7 @@ public class Main implements ApplicationListener {
         float worldWidth = viewport.getWorldWidth();
         float worldHeight = viewport.getWorldHeight();
 
+        // Draw background
         spriteBatch.draw(
             backgroundTexture,
             0,
@@ -169,8 +222,10 @@ public class Main implements ApplicationListener {
             worldHeight
         );
 
+        // Draw bucket
         bucketSprite.draw(spriteBatch);
 
+        // Draw all raindrops
         for (Sprite dropSprite : dropSprites) {
             dropSprite.draw(spriteBatch);
         }
@@ -179,44 +234,60 @@ public class Main implements ApplicationListener {
     }
 
     private void createDroplet() {
+
         float dropWidth = 1;
         float dropHeight = 1;
 
         float worldWidth = viewport.getWorldWidth();
         float worldHeight = viewport.getWorldHeight();
 
+        // Create a new raindrop
         Sprite dropSprite = new Sprite(dropTexture);
+
         dropSprite.setSize(dropWidth, dropHeight);
 
+        // Random horizontal position
         dropSprite.setX(
-            MathUtils.random(0f, worldWidth - dropWidth)
+            MathUtils.random(
+                0f,
+                worldWidth - dropWidth
+            )
         );
 
+        // Start at the top of the screen
         dropSprite.setY(worldHeight);
 
+        // Add to the list
         dropSprites.add(dropSprite);
     }
 
     @Override
     public void resize(int width, int height) {
+
         viewport.update(width, height, true);
     }
 
     @Override
     public void pause() {
+        // No action needed
     }
 
     @Override
     public void resume() {
+        // No action needed
     }
 
     @Override
     public void dispose() {
+
+        // Release resources
         backgroundTexture.dispose();
         bucketTexture.dispose();
         dropTexture.dispose();
+
         dropSound.dispose();
         music.dispose();
+
         spriteBatch.dispose();
     }
 }
